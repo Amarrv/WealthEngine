@@ -13,8 +13,9 @@ const User = require('../models/User');
 const requireAuth = require('../middleware/requireAuth');
 
 const rpName = 'Obsidian Wealth Engine';
-const rpID = process.env.RP_ID || 'localhost';
 const origin = process.env.FRONTEND_URL || 'http://localhost:5173';
+// Safely extract the domain (e.g. wealth-engine.vercel.app) for the relying party ID
+const rpID = process.env.RP_ID || (process.env.FRONTEND_URL ? new URL(process.env.FRONTEND_URL).hostname : 'localhost');
 
 // Helpers
 const generateToken = (user) => {
