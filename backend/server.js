@@ -14,11 +14,27 @@ app.use(cors({
 app.use(express.json()); // Parses incoming JSON requests
 app.use(cookieParser()); // Parses HttpOnly cookies
 
-// Database Connection
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("Connected to MongoDB: Titan Data Layer Active"))
-  .catch((err) => console.error("Database connection failed:", err));
+// Serverless Optimized Database Connection
+let isConnected = false;
+const connectDB = async () => {
+  if (isConnected || mongoose.connections[0].readyState) {
+    isConnected = true;
+    return;
+  }
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    isConnected = true;
+    console.log("Connected to MongoDB: Titan Data Layer Active");
+  } catch (err) {
+    console.error("Database connection failed:", err);
+  }
+};
+
+// Ensure DB is connected before handling any requests
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
 
 const authRoutes = require("./routes/auth");
 const transactionRoutes = require("./routes/transactions");
