@@ -13,7 +13,7 @@ const User = require('../models/User');
 const requireAuth = require('../middleware/requireAuth');
 
 const rpName = 'Obsidian Wealth Engine';
-const origin = process.env.FRONTEND_URL || 'http://localhost:5173';
+const origin = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
 // Safely extract the domain (e.g. wealth-engine.vercel.app) for the relying party ID
 const rpID = process.env.RP_ID || (process.env.FRONTEND_URL ? new URL(process.env.FRONTEND_URL).hostname : 'localhost');
 
@@ -129,7 +129,7 @@ router.get('/generate-registration-options', requireAuth, async (req, res) => {
       excludeCredentials: user.passkeys.map(key => ({
         id: key.credentialID,
         type: 'public-key',
-        transports: key.transports,
+        transports: key.transports ? Array.from(key.transports) : undefined,
       })),
       authenticatorSelection: {
         residentKey: 'preferred',
@@ -208,7 +208,7 @@ router.post('/generate-authentication-options', async (req, res) => {
       allowCredentials: user.passkeys.map(key => ({
         id: key.credentialID,
         type: 'public-key',
-        transports: key.transports,
+        transports: key.transports ? Array.from(key.transports) : undefined,
       })),
       userVerification: 'preferred',
     });
@@ -248,7 +248,7 @@ router.post('/verify-authentication', async (req, res) => {
         id: authenticator.credentialID,
         publicKey: new Uint8Array(authenticator.credentialPublicKey),
         counter: authenticator.counter,
-        transports: authenticator.transports,
+        transports: authenticator.transports ? Array.from(authenticator.transports) : undefined,
       },
       requireUserVerification: false,
     });
