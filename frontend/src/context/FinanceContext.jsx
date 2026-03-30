@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from "react";
 import apiClient from "../api/apiClient";
-import { startOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth } from "date-fns";
 
 import { AuthContext } from "./AuthContext";
 
@@ -10,7 +10,7 @@ export const FinanceProvider = ({ children }) => {
   const { isAuthenticated } = useContext(AuthContext);
   const [dateRange, setDateRange] = useState({
     from: startOfMonth(new Date()),
-    to: new Date()
+    to: endOfMonth(new Date())
   });
 
   const [metrics, setMetrics] = useState({
