@@ -1,12 +1,13 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { Fingerprint, KeyRound, Loader2, SignalHigh } from 'lucide-react';
+import { Fingerprint, KeyRound, Loader2, SignalHigh, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
   const { loginWithPassword, loginWithBiometrics, registerUser } = useContext(AuthContext);
   const [username, setUsername] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
@@ -93,17 +94,28 @@ const Login = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">PIN / Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-zinc-100 font-mono focus:outline-none focus:ring-1 focus:ring-zinc-500 transition-all placeholder:text-zinc-700"
-                required
-              />
-            </div>
+              <div className="space-y-2 relative">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">PIN / Password</label>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-zinc-950/50 border border-white/10 rounded-xl px-4 py-3 text-zinc-100 font-mono focus:outline-none focus:ring-1 focus:ring-zinc-500 transition-all placeholder:text-zinc-700 pr-12"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
 
             {status && (
               <div className="text-xs text-rose-400 font-mono text-center p-2 bg-rose-950/20 rounded-lg border border-rose-900/30">

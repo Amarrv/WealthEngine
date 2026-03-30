@@ -13,9 +13,31 @@ const User = require('../models/User');
 const requireAuth = require('../middleware/requireAuth');
 
 const rpName = 'Obsidian Wealth Engine';
-const origin = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
-// Safely extract the domain (e.g. wealth-engine.vercel.app) for the relying party ID
-const rpID = process.env.RP_ID || (process.env.FRONTEND_URL ? new URL(process.env.FRONTEND_URL).hostname : 'localhost');
+
+// Safely extract allowed Origins and RP IDs based on env and dynamic requests
+const getExpectedOrigins = (req) => {
+  const envUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+  const reqOrigin = req.headers.origin;
+  const origins = ['http://localhost:5173', 'http://localhost:5174'];
+  if (envUrl) origins.push(envUrl);
+  if (reqOrigin && !origins.includes(reqOrigin)) origins.push(reqOrigin); // Trust the CORS-gated incoming request origin!
+  return origins;
+};
+
+const getExpectedRPIDs = (req) => {
+  const rpIDs = [];
+  // 1. Highest priority: The exact domain the request came from
+  if (req.headers.origin) {
+    try { rpIDs.push(new URL(req.headers.origin).hostname); } catch (e) {}
+  }
+  // 2. Fallbacks
+  if (process.env.RP_ID) rpIDs.push(process.env.RP_ID);
+  if (process.env.FRONTEND_URL) {
+    try { rpIDs.push(new URL(process.env.FRONTEND_URL).hostname); } catch (e) {}
+  }
+  rpIDs.push('localhost');
+  return [...new Set(rpIDs)];
+};
 
 // Helpers
 const generateToken = (user) => {
@@ -121,7 +143,7 @@ router.get('/generate-registration-options', requireAuth, async (req, res) => {
     
     const options = await generateRegistrationOptions({
       rpName,
-      rpID,
+      rpID: getExpectedRPIDs(req)[0], // Options generation only accepts one string
       userID: new Uint8Array(Buffer.from(user._id.toString())),
       userName: user.phoneNumber,
       userDisplayName: user.username,
@@ -144,7 +166,7 @@ router.get('/generate-registration-options', requireAuth, async (req, res) => {
     res.status(200).json({ success: true, options });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Error generating options' });
+    res.status(500).json({ success: false, message: error.message || 'Error generating options' });
   }
 });
 
@@ -158,8 +180,8 @@ router.post('/verify-registration', requireAuth, async (req, res) => {
     const verification = await verifyRegistrationResponse({
       response,
       expectedChallenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID,
+      expectedOrigin: getExpectedOrigins(req),
+      expectedRPID: getExpectedRPIDs(req),
       requireUserVerification: false,
     });
 
@@ -170,7 +192,7 @@ router.post('/verify-registration', requireAuth, async (req, res) => {
 
       const newPasskey = {
         credentialID: credential.id,
-        credentialPublicKey: credential.publicKey,
+        credentialPublicKey: Buffer.from(credential.publicKey),
         counter: credential.counter,
         transports: credential.transports || response.response?.transports || [],
       };
@@ -182,10 +204,10 @@ router.post('/verify-registration', requireAuth, async (req, res) => {
       return res.status(200).json({ success: true, message: 'Passkey registered' });
     }
 
-    res.status(400).json({ success: false, message: 'Verification failed' });
+    res.status(400).json({ success: false, message: 'Verification failed - response invalid' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Error verifying registration' });
+    res.status(500).json({ success: false, message: error.message || 'Error verifying registration' });
   }
 });
 
@@ -204,7 +226,7 @@ router.post('/generate-authentication-options', async (req, res) => {
     }
 
     const options = await generateAuthenticationOptions({
-      rpID,
+      rpID: getExpectedRPIDs(req)[0],
       allowCredentials: user.passkeys.map(key => ({
         id: key.credentialID,
         type: 'public-key',
@@ -219,7 +241,7 @@ router.post('/generate-authentication-options', async (req, res) => {
     res.status(200).json({ success: true, options });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Error generating authentication options' });
+    res.status(500).json({ success: false, message: error.message || 'Error generating authentication options' });
   }
 });
 
@@ -242,8 +264,8 @@ router.post('/verify-authentication', async (req, res) => {
     const verification = await verifyAuthenticationResponse({
       response: body,
       expectedChallenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID,
+      expectedOrigin: getExpectedOrigins(req),
+      expectedRPID: getExpectedRPIDs(req),
       credential: {
         id: authenticator.credentialID,
         publicKey: new Uint8Array(authenticator.credentialPublicKey),
@@ -267,10 +289,10 @@ router.post('/verify-authentication', async (req, res) => {
       return res.status(200).json({ success: true, message: 'Logged in successfully' });
     }
 
-    res.status(400).json({ success: false, message: 'Authentication failed' });
+    res.status(400).json({ success: false, message: 'Authentication failed - Invalid response' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Error verifying authentication' });
+    res.status(500).json({ success: false, message: error.message || 'Error verifying authentication' });
   }
 });
 
