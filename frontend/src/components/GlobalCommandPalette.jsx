@@ -11,145 +11,173 @@ import {
 } from "./ui/command";
 import { Plus, TrendingUp, TrendingDown, RefreshCcw } from "lucide-react";
 
-// TRAVEL / TRANSPORT
+/* =========================
+   🔹 DICTIONARY (IMPROVED)
+========================= */
+
+// TRAVEL
 const EXPENSE_TRAVEL = [
     'bus', 'mtc', 'auto', 'rapido', 'uber', 'ola', 'metro', 'train', 'irctc',
     'flight', 'petrol', 'fuel', 'diesel', 'fastag', 'cab', 'redbus',
-    'bike taxi', 'parking', 'toll', 'uber auto', 'ola bike'
+    'bike taxi', 'parking', 'toll'
 ];
 
-// FOOD & GROCERIES
+// FOOD
 const EXPENSE_FOOD = [
     'swiggy', 'zomato', 'zepto', 'blinkit', 'instamart',
-    'grocery', 'supermarket', 'reliance', 'more', 'dmart', 'spencer',
+    'grocery', 'supermarket', 'dmart', 'spencer', 'reliance',
     'hotel', 'restaurant', 'cafe', 'bakery',
     'tea', 'chai', 'coffee',
     'breakfast', 'lunch', 'dinner', 'snacks',
     'juice', 'milk', 'aavin', 'water',
-    'tasmac', // (optional: alcohol)
     'food court', 'mess', 'canteen'
 ];
 
-// UTILITIES & BILLS
+// UTILITIES
 const EXPENSE_UTILITIES = [
-    'tneb', 'electricity', 'eb bill',
+    'electricity', 'tneb', 'eb bill',
+    'wifi', 'broadband', 'act', 'hathway',
     'jio', 'airtel', 'vi', 'bsnl',
-    'act', 'hathway', 'wifi', 'broadband',
     'recharge', 'mobile bill',
     'gas', 'cylinder', 'lpg',
     'water bill', 'maintenance'
 ];
 
-// INVESTMENTS & SAVINGS
-const INVESTMENT_ASSETS = [
-    'zerodha', 'groww', 'upstox', 'kite', 'coin',
-    'mutual fund', 'sip', 'stock', 'shares',
-    'crypto', 'bitcoin', 'ethereum',
-    'gold', 'sgb',
-    'ppf', 'epf', 'nps',
-    'fd', 'fixed deposit', 'rd', 'recurring deposit'
+/* =========================
+   🔥 ADVANCED CATEGORY ENGINE
+========================= */
+
+const CATEGORY_MAP = [
+    // EXPENSES
+    { keywords: EXPENSE_FOOD, type: "EXPENSE", category: "Food" },
+    { keywords: EXPENSE_TRAVEL, type: "EXPENSE", category: "Transport" },
+    { keywords: EXPENSE_UTILITIES, type: "EXPENSE", category: "Utilities" },
+
+    // INVESTMENTS
+    { keywords: ['stock', 'shares', 'zerodha', 'kite'], type: "INVESTMENT", category: "Equities" },
+    { keywords: ['mutual fund', 'sip', 'groww', 'coin'], type: "INVESTMENT", category: "Mutual Funds" },
+    { keywords: ['fd', 'fixed deposit', 'rd'], type: "INVESTMENT", category: "Fixed Income" },
+    { keywords: ['ppf', 'epf', 'nps'], type: "INVESTMENT", category: "Retirement" },
+    { keywords: ['gold', 'sgb'], type: "INVESTMENT", category: "Gold" },
+    { keywords: ['crypto', 'bitcoin', 'ethereum'], type: "INVESTMENT", category: "Crypto" },
+
+    // INCOME
+    { keywords: ['salary', 'bonus', 'incentive'], type: "INCOME", category: "Salary" },
+    { keywords: ['freelance', 'consulting'], type: "INCOME", category: "Business" },
+    { keywords: ['dividend'], type: "INCOME", category: "Investment Income" },
+    { keywords: ['interest'], type: "INCOME", category: "Interest Income" },
+    { keywords: ['rent received'], type: "INCOME", category: "Rental Income" },
+    { keywords: ['cashback', 'refund'], type: "INCOME", category: "Other Income" },
 ];
 
-// INCOME
-const INCOME_MAIN = [
-    'salary', 'bonus', 'incentive',
-    'dividend', 'interest',
-    'refund', 'cashback',
-    'freelance', 'consulting',
-    'upi credit', 'bank credit',
-    'rent received', 'commission'
-];
-// Helper for substring match to tolerate inputs like '28bus' blending together
-const hasMatch = (desc, arr) => {
-    return arr.some(word => desc.includes(word));
+/* =========================
+   🔍 HELPERS
+========================= */
+
+// Normalize input
+const normalizeText = (text) => {
+    return text
+        .toLowerCase()
+        .replace(/[₹]/g, '')
+        .replace(/rs\.?/gi, '')
+        .replace(/[0-9]/g, '')
+        .replace(/[^a-zA-Z\s]/g, '')
+        .trim();
 };
+
+// Advanced detection
+const detectCategoryAdvanced = (desc, transactions) => {
+    if (!desc) return { type: "EXPENSE", category: "Misc" };
+
+    // 1. Rule-based match
+    for (let rule of CATEGORY_MAP) {
+        if (rule.keywords.some(k => desc.includes(k))) {
+            return { type: rule.type, category: rule.category };
+        }
+    }
+
+    // 2. Learn from history
+    const pastTx = [...transactions]
+        .reverse()
+        .find(t => t.description.toLowerCase() === desc);
+
+    if (pastTx) {
+        return { type: pastTx.type, category: pastTx.category };
+    }
+
+    // 3. Default fallback
+    return { type: "EXPENSE", category: "Misc" };
+};
+
+/* =========================
+   🚀 COMPONENT
+========================= */
 
 const GlobalCommandPalette = () => {
     const [open, setOpen] = useState(false);
     const [inputValue, setInputValue] = useState("");
-    const [manualType, setManualType] = useState(null); // Tracks Tab UI override
+    const [manualType, setManualType] = useState(null);
+
     const { addTransaction, transactions } = useContext(FinanceContext);
 
-    // Global Cmd+K trigger
+    // Cmd + K
     useEffect(() => {
         const down = (e) => {
             if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
-                setOpen((open) => !open);
+                setOpen(o => !o);
             }
         };
         document.addEventListener("keydown", down);
         return () => document.removeEventListener("keydown", down);
     }, []);
 
-    // Reset override state when closing or clearing input
+    // Reset override
     useEffect(() => {
-        if (!open || !inputValue) {
-            setManualType(null);
-        }
+        if (!open || !inputValue) setManualType(null);
     }, [open, inputValue]);
 
-    // PART 1 & 3: THE OMNI-DIRECTIONAL TOKENIZER AND DECISION MATRIX
+    /* =========================
+       🔥 PARSER ENGINE
+    ========================= */
+
     const parsedData = useMemo(() => {
-        if (!inputValue) return { amount: null, normalizedDesc: "", type: "EXPENSE", category: "Misc" };
+        if (!inputValue) {
+            return { amount: null, normalizedDesc: "", type: "EXPENSE", category: "Misc" };
+        }
 
-        // Amount Extraction: Global regex for any number, potentially prefixed with currency
+        // Extract amount
         const amountRegex = /(?:₹|Rs\.?\s*)?(\d+(\.\d{1,2})?)/i;
-        const amountMatch = inputValue.match(amountRegex);
-        const amountStr = amountMatch ? amountMatch[1] : null;
+        const match = inputValue.match(amountRegex);
+        const amount = match ? match[1] : null;
 
-        // Description Extraction: Strip the matched number string out of the raw input
-        let rawDesc = inputValue;
-        if (amountMatch) {
-            rawDesc = rawDesc.replace(amountMatch[0], '');
-        }
+        let desc = inputValue;
+        if (match) desc = desc.replace(match[0], '');
 
-        // Remove leftover currency terms and ANY numbers/special chars to get pure word strings
-        const normalizedDesc = rawDesc
-            .replace(/[₹]/g, '')
-            .replace(/Rs\.?/gi, '')
-            .replace(/[0-9]/g, '') // remove trailing/leading leftover digits just in case
-            .replace(/[^a-zA-Z\s]/g, '') // remove any stray symbols
-            .trim()
-            .toLowerCase();
+        const normalizedDesc = normalizeText(desc);
 
-        // Evaluate Decision Matrix Priorities
-        let baseType = "EXPENSE"; // Level 3 (Fallback)
-        let baseCategory = "Misc";
+        // Detect category
+        const detected = detectCategoryAdvanced(normalizedDesc, transactions);
 
-        // Level 1: Heuristic Priority (Strong Dictionary)
-        if (hasMatch(normalizedDesc, EXPENSE_TRAVEL)) {
-            baseType = "EXPENSE"; baseCategory = "Transport";
-        } else if (hasMatch(normalizedDesc, EXPENSE_FOOD)) {
-            baseType = "EXPENSE"; baseCategory = "Food";
-        } else if (hasMatch(normalizedDesc, EXPENSE_UTILITIES)) {
-            baseType = "EXPENSE"; baseCategory = "Housing";
-        } else if (hasMatch(normalizedDesc, INVESTMENT_ASSETS)) {
-            baseType = "INVESTMENT"; baseCategory = "Equities";
-        } else if (hasMatch(normalizedDesc, INCOME_MAIN)) {
-            baseType = "INCOME"; baseCategory = "Salary";
-        } else {
-            // Level 2: Historical Priority (Learn from unknown words)
-            // Reverse to find the MOST RECENT past transaction, not the oldest
-            const pastTx = [...transactions].reverse().find(t => t.description.toLowerCase() === normalizedDesc && normalizedDesc !== '');
-            if (pastTx) {
-                baseType = pastTx.type;
-                baseCategory = pastTx.category;
-            }
-        }
+        const finalType = manualType || detected.type;
 
-        // Apply friction-less UI override if Tab was pressed
-        const finalType = manualType || baseType;
-
-        return { amount: amountStr, normalizedDesc, type: finalType, category: baseCategory };
+        return {
+            amount,
+            normalizedDesc,
+            type: finalType,
+            category: detected.category
+        };
     }, [inputValue, transactions, manualType]);
 
-    // PART 4: THE FRICTIONLESS UI OVERRIDE (Tab Cycle Listener & Mobile Touch)
+    /* =========================
+       🔁 TYPE SWITCH
+    ========================= */
+
     const cycleType = () => {
         setManualType(prev => {
-            const currentType = prev || parsedData.type;
-            if (currentType === "EXPENSE") return "INCOME";
-            if (currentType === "INCOME") return "INVESTMENT";
+            const current = prev || parsedData.type;
+            if (current === "EXPENSE") return "INCOME";
+            if (current === "INCOME") return "INVESTMENT";
             return "EXPENSE";
         });
     };
@@ -161,14 +189,17 @@ const GlobalCommandPalette = () => {
         }
     };
 
+    /* =========================
+       ✅ CREATE TRANSACTION
+    ========================= */
+
     const handleCreate = async () => {
         const { amount, normalizedDesc, type, category } = parsedData;
 
-        // Guard rails
         if (!amount || !normalizedDesc) return;
 
-        // Capitalize sentence
-        const formattedDesc = normalizedDesc.charAt(0).toUpperCase() + normalizedDesc.slice(1);
+        const formattedDesc =
+            normalizedDesc.charAt(0).toUpperCase() + normalizedDesc.slice(1);
 
         const res = await addTransaction({
             amount,
@@ -187,6 +218,9 @@ const GlobalCommandPalette = () => {
         }
     };
 
+    /* =========================
+       🎨 UI
+    ========================= */
     return (
         <>
             <p className="fixed bottom-4 right-4 text-sm text-zinc-400 bg-zinc-900/40 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full shadow-2xl flex items-center gap-2">
