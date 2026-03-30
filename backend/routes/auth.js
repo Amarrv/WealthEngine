@@ -165,13 +165,13 @@ router.post('/verify-registration', requireAuth, async (req, res) => {
     const { verified, registrationInfo } = verification;
 
     if (verified && registrationInfo) {
-      const { credentialPublicKey, credentialID, counter } = registrationInfo;
+      const { credential } = registrationInfo;
 
       const newPasskey = {
-        credentialID,
-        credentialPublicKey,
-        counter,
-        transports: response.response.transports,
+        credentialID: credential.id,
+        credentialPublicKey: credential.publicKey,
+        counter: credential.counter,
+        transports: credential.transports || response.response?.transports || [],
       };
 
       user.passkeys.push(newPasskey);
@@ -243,10 +243,11 @@ router.post('/verify-authentication', async (req, res) => {
       expectedChallenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
-      authenticator: {
-        credentialPublicKey: authenticator.credentialPublicKey,
-        credentialID: authenticator.credentialID,
+      credential: {
+        id: authenticator.credentialID,
+        publicKey: new Uint8Array(authenticator.credentialPublicKey),
         counter: authenticator.counter,
+        transports: authenticator.transports,
       },
       requireUserVerification: false,
     });
