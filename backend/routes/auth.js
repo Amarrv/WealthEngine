@@ -29,7 +29,7 @@ const setAuthCookie = (res, token) => {
   res.cookie('auth_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Required for cross-origin Vercel deployment
     maxAge: 86400000, // 1 day
   });
 };
@@ -96,7 +96,7 @@ router.post('/logout', (req, res) => {
   res.clearCookie('auth_token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   });
   res.status(200).json({ success: true, message: 'Logged out' });
 });
