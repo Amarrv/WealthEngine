@@ -13,8 +13,8 @@ const User = require('../models/User');
 const requireAuth = require('../middleware/requireAuth');
 
 const rpName = 'Obsidian Wealth Engine';
-const rpID = process.env.NODE_ENV === 'production' ? process.env.RP_ID : 'localhost';
-const origin = process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:5174';
+const rpID = process.env.RP_ID || 'localhost';
+const origin = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // Helpers
 const generateToken = (user) => {
