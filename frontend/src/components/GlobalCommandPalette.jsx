@@ -11,13 +11,54 @@ import {
 } from "./ui/command";
 import { Plus, TrendingUp, TrendingDown, RefreshCcw } from "lucide-react";
 
-// PART 2: THE LOCALIZED HEURISTIC DICTIONARY
-const EXPENSE_TRAVEL = ['bus', 'mtc', 'auto', 'rapido', 'uber', 'ola', 'metro', 'train', 'irctc', 'flight', 'petrol', 'fuel', 'fastag', 'cab', 'redbus'];
-const EXPENSE_FOOD = ['swiggy', 'zomato', 'zepto', 'blinkit', 'instamart', 'grocery', 'supermarket', 'reliance', 'more', 'hotel', 'cafe', 'tea', 'chai', 'aavin', 'tasmac', 'water'];
-const EXPENSE_UTILITIES = ['tneb', 'electricity', 'jio', 'airtel', 'vi', 'act', 'hathway', 'wifi', 'recharge', 'gas', 'cylinder'];
-const INVESTMENT_ASSETS = ['zerodha', 'groww', 'upstox', 'kite', 'coin', 'mutual fund', 'sip', 'stock', 'crypto', 'gold', 'sgb', 'ppf', 'epf'];
-const INCOME_MAIN = ['salary', 'bonus', 'dividend', 'refund', 'cashback', 'interest', 'freelance', 'upi credit'];
+// TRAVEL / TRANSPORT
+const EXPENSE_TRAVEL = [
+    'bus', 'mtc', 'auto', 'rapido', 'uber', 'ola', 'metro', 'train', 'irctc',
+    'flight', 'petrol', 'fuel', 'diesel', 'fastag', 'cab', 'redbus',
+    'bike taxi', 'parking', 'toll', 'uber auto', 'ola bike'
+];
 
+// FOOD & GROCERIES
+const EXPENSE_FOOD = [
+    'swiggy', 'zomato', 'zepto', 'blinkit', 'instamart',
+    'grocery', 'supermarket', 'reliance', 'more', 'dmart', 'spencer',
+    'hotel', 'restaurant', 'cafe', 'bakery',
+    'tea', 'chai', 'coffee',
+    'breakfast', 'lunch', 'dinner', 'snacks',
+    'juice', 'milk', 'aavin', 'water',
+    'tasmac', // (optional: alcohol)
+    'food court', 'mess', 'canteen'
+];
+
+// UTILITIES & BILLS
+const EXPENSE_UTILITIES = [
+    'tneb', 'electricity', 'eb bill',
+    'jio', 'airtel', 'vi', 'bsnl',
+    'act', 'hathway', 'wifi', 'broadband',
+    'recharge', 'mobile bill',
+    'gas', 'cylinder', 'lpg',
+    'water bill', 'maintenance'
+];
+
+// INVESTMENTS & SAVINGS
+const INVESTMENT_ASSETS = [
+    'zerodha', 'groww', 'upstox', 'kite', 'coin',
+    'mutual fund', 'sip', 'stock', 'shares',
+    'crypto', 'bitcoin', 'ethereum',
+    'gold', 'sgb',
+    'ppf', 'epf', 'nps',
+    'fd', 'fixed deposit', 'rd', 'recurring deposit'
+];
+
+// INCOME
+const INCOME_MAIN = [
+    'salary', 'bonus', 'incentive',
+    'dividend', 'interest',
+    'refund', 'cashback',
+    'freelance', 'consulting',
+    'upi credit', 'bank credit',
+    'rent received', 'commission'
+];
 // Helper for substring match to tolerate inputs like '28bus' blending together
 const hasMatch = (desc, arr) => {
     return arr.some(word => desc.includes(word));
