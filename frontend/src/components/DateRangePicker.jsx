@@ -60,6 +60,14 @@ const DateRangePicker = ({ className }) => {
             },
         }
     ];
+    const [isMobile, setIsMobile] = React.useState(false);
+    React.useEffect(() => {
+        const mql = window.matchMedia("(max-width: 640px)");
+        setIsMobile(mql.matches);
+        const listener = (e) => setIsMobile(e.matches);
+        mql.addEventListener("change", listener);
+        return () => mql.removeEventListener("change", listener);
+    }, []);
 
     return (
         <div className={cn("grid gap-2", className)}>
@@ -92,27 +100,27 @@ const DateRangePicker = ({ className }) => {
                     className="w-auto p-0 flex flex-col sm:flex-row align-start bg-zinc-950/95 backdrop-blur-3xl border-white/10 text-zinc-300 shadow-2xl shadow-black rounded-xl overflow-hidden" 
                     align="end"
                 >
-                    <div className="flex flex-col gap-1 sm:pr-4 sm:border-r border-white/10 p-4 bg-zinc-900/20">
-                        <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2 tracking-wider">Presets</h4>
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:gap-1 sm:pr-4 sm:border-r border-white/10 p-4 bg-zinc-900/20 border-b sm:border-b-0">
+                        <h4 className="col-span-2 sm:col-span-1 text-xs font-semibold uppercase text-muted-foreground mb-1 tracking-wider">Presets</h4>
                         {presets.map((preset) => (
                             <Button
                                 key={preset.label}
                                 variant="ghost"
-                                className="justify-start text-sm h-8 px-2 w-full sm:w-[140px] font-medium hover:bg-zinc-800/50 hover:text-zinc-100 text-zinc-400"
+                                className="justify-start text-xs sm:text-sm h-8 px-2 w-full sm:w-[140px] font-medium bg-white/5 sm:bg-transparent hover:bg-zinc-800/50 hover:text-zinc-100 text-zinc-400"
                                 onClick={() => setDateRange(preset.getValue())}
                             >
                                 {preset.label}
                             </Button>
                         ))}
                     </div>
-                    <div className="p-2">
+                    <div className="p-2 mx-auto">
                         <Calendar
                             initialFocus
                             mode="range"
                             defaultMonth={dateRange?.from}
                             selected={dateRange}
                             onSelect={setDateRange}
-                            numberOfMonths={2}
+                            numberOfMonths={isMobile ? 1 : 2}
                         />
                     </div>
                 </PopoverContent>
