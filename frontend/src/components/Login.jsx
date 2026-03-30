@@ -23,7 +23,8 @@ const Login = () => {
       await loginWithBiometrics(phoneNumber);
     } catch (err) {
       console.error(err);
-      setStatus('Biometric failed or not registered. Try password.');
+      const exactFault = err.response?.data?.message || err.message;
+      setStatus(`Biometric Error: ${exactFault}`);
     } finally {
       setLoading(false);
     }
