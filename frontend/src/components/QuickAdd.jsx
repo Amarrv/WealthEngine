@@ -1,16 +1,29 @@
-import React, { useState, useContext, useRef } from "react";
+import React, { useState, useContext, useRef, useEffect } from "react";
+import { format, isSameDay } from "date-fns";
 import { FinanceContext } from "../context/FinanceContext";
 
 const QuickAdd = ({ editingTransaction = null, onCancel = null }) => {
-  const { addTransaction, updateTransaction } = useContext(FinanceContext);
+  const { addTransaction, updateTransaction, dateRange } = useContext(FinanceContext);
 
   // Local state for the frictionless form
   const [amount, setAmount] = useState(editingTransaction?.amount || "");
   const [type, setType] = useState(editingTransaction?.type || "EXPENSE");
   const [category, setCategory] = useState(editingTransaction?.category || "Food");
   const [description, setDescription] = useState(editingTransaction?.description || "");
+  const [date, setDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  // Dynamically attach date to current view filters
+  useEffect(() => {
+    if (editingTransaction?.date) {
+      setDate(format(new Date(editingTransaction.date), "yyyy-MM-dd"));
+    } else if (dateRange?.from && dateRange?.to && isSameDay(dateRange.from, dateRange.to)) {
+      setDate(format(dateRange.from, "yyyy-MM-dd"));
+    } else {
+      setDate(format(new Date(), "yyyy-MM-dd"));
+    }
+  }, [dateRange, editingTransaction]);
 
   // Reference to snap focus back to the input after submission
   const amountInputRef = useRef(null);
@@ -48,6 +61,7 @@ const QuickAdd = ({ editingTransaction = null, onCancel = null }) => {
       type,
       category,
       description,
+      date: new Date(date).toISOString(),
     };
 
     // 3. Execute Context Mutation
@@ -131,6 +145,18 @@ const QuickAdd = ({ editingTransaction = null, onCancel = null }) => {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* DATE SELECTOR */}
+        <div className="flex-[0.5] min-w-[130px]">
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            disabled={isSubmitting}
+            className="w-full p-3.5 text-base bg-transparent border-b border-zinc-700 text-zinc-100 focus:outline-none focus:border-zinc-300 transition-colors duration-300 appearance-none [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert-[0.7] font-mono"
+            required
+          />
         </div>
 
         {/* DESCRIPTION INPUT (Optional) */}
