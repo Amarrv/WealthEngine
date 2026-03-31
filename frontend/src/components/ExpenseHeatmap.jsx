@@ -108,4 +108,4 @@ const ExpenseHeatmap = () => {
     );
 };
 
-export default ExpenseHeatmap;
+export default React.memo(ExpenseHeatmap);

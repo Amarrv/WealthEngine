@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useCallback, useContext } from "react";
+import React, { createContext, useState, useEffect, useCallback, useContext, useMemo, useRef } from "react";
 import apiClient from "../api/apiClient";
 import { startOfMonth, endOfMonth } from "date-fns";
 
@@ -25,6 +25,8 @@ export const FinanceProvider = ({ children }) => {
   const [transactions, setTransactions] = useState([]);
   const [goals, setGoals] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const isInitialLoad = useRef(true);
   const [error, setError] = useState(null);
 
   // Memoize the fetch functions so they aren't recreated on every render
@@ -78,9 +80,21 @@ export const FinanceProvider = ({ children }) => {
   useEffect(() => {
     const syncData = async () => {
       if (!isAuthenticated) return;
-      setIsLoading(true);
-      await Promise.all([fetchMetrics(), fetchTransactions(), fetchGoals()]);
-      setIsLoading(false);
+      
+      // Only show full page loader on first entry
+      if (isInitialLoad.current) {
+        setIsLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
+
+      try {
+        await Promise.all([fetchMetrics(), fetchTransactions(), fetchGoals()]);
+        isInitialLoad.current = false;
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     };
     syncData();
   }, [fetchMetrics, fetchTransactions, isAuthenticated]);
@@ -164,26 +178,43 @@ export const FinanceProvider = ({ children }) => {
     }
   };
 
+  const providerValue = useMemo(() => ({
+    dateRange,
+    setDateRange,
+    metrics,
+    rollingMetrics,
+    heatmapData,
+    transactions,
+    goals,
+    isLoading,
+    isRefreshing,
+    error,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+    addGoal,
+    addGoalFunds,
+    deleteGoal,
+  }), [
+    dateRange, 
+    metrics, 
+    rollingMetrics, 
+    heatmapData, 
+    transactions, 
+    goals, 
+    isLoading, 
+    isRefreshing, 
+    error,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+    addGoal,
+    addGoalFunds,
+    deleteGoal
+  ]);
+
   return (
-    <FinanceContext.Provider
-      value={{
-        dateRange,
-        setDateRange,
-        metrics,
-        rollingMetrics,
-        heatmapData,
-        transactions,
-        goals,
-        isLoading,
-        error,
-        addTransaction,
-        updateTransaction,
-        deleteTransaction,
-        addGoal,
-        addGoalFunds,
-        deleteGoal,
-      }}
-    >
+    <FinanceContext.Provider value={providerValue}>
       {children}
     </FinanceContext.Provider>
   );

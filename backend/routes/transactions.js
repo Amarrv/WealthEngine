@@ -67,11 +67,17 @@ router.get("/metrics", async (req, res) => {
       { $group: { _id: "$type", totalAmount: { $sum: "$amount" } } },
     ];
 
-    // 2. NEW Pipeline: Expense Category Breakdown
+    // 2. NEW Pipeline: Outflow Category Breakdown (Expense + Investment)
     const categoryPipeline = [
-      { $match: { userId: new mongoose.Types.ObjectId(req.user.id), date: { $gte: firstDay, $lte: lastDay }, type: "EXPENSE" } },
+      { 
+        $match: { 
+          userId: new mongoose.Types.ObjectId(req.user.id), 
+          date: { $gte: firstDay, $lte: lastDay }, 
+          type: { $in: ["EXPENSE", "INVESTMENT"] } 
+        } 
+      },
       { $group: { _id: "$category", categoryTotal: { $sum: "$amount" } } },
-      { $sort: { categoryTotal: -1 } }, // Sort largest expenses first
+      { $sort: { categoryTotal: -1 } }, // Sort largest outflows first
     ];
 
     // Execute both queries concurrently for maximum speed

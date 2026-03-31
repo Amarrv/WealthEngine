@@ -192,12 +192,15 @@ const LedgerTable = () => {
           return (
             <div key={tx._id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
               <div className="flex flex-col space-y-1 overflow-hidden pr-4 flex-1">
-                <span className="font-medium text-zinc-200 truncate">{tx.description || tx.category}</span>
-                <div className="flex items-center gap-2">
+                <span className="font-medium text-zinc-200 truncate">{tx.description || "Unspecified"}</span>
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className={`px-1.5 py-0.5 rounded text-[10px] tracking-wider uppercase ${bgBadge}`}>
                     {tx.type}
                   </span>
-                  <span className="text-xs text-zinc-500 font-mono">{format(new Date(tx.date), "dd MMM")}</span>
+                  <span className="text-[10px] text-zinc-400 bg-zinc-800/40 px-1.5 py-0.5 rounded border border-white/5 uppercase tracking-tighter">
+                    {tx.category}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono">{format(new Date(tx.date), "dd MMM")}</span>
                 </div>
               </div>
               

@@ -16,27 +16,27 @@ const ExpenseChart = () => {
 
   if (data.length === 0) {
     return (
-      <div className="bg-zinc-900/40 h-[300px] flex items-center justify-center bg-card rounded-lg border shadow-sm">
-        <p className="text-muted-foreground">No expenses logged this month.</p>
+      <div className="bg-zinc-900/40 h-[300px] flex items-center justify-center bg-card rounded-lg border shadow-sm text-center p-4">
+        <p className="text-muted-foreground italic font-serif">No outflows (expenses or investments) logged for this period.</p>
       </div>
     );
   }
 
   // A high-contrast semantic palette for the Spatial Noir redesign
   const COLORS = [
-    "#f43f5e", // Rose 500 (Primary Expense)
-    "#6366f1", // Indigo 500 (Investment/Fixed)
+    "#f43f5e", // Rose 500 (Expense)
+    "#6366f1", // Indigo 500 (Investments)
     "#f4f4f5", // Zinc 100 (Platinum highlight)
     "#e11d48", // Rose 600 (Major Outflow)
     "#a1a1aa", // Zinc 400 (Misc/Neutral)
-    "#fb7185", // Rose 400 (Variable Expense)
+    "#fb7185", // Rose 400 (Variable)
     "#71717a", // Zinc 500 (Muted)
   ];
 
   return (
     <div className="bg-zinc-900/40 backdrop-blur-xl backdrop-saturate-150 border border-white/10 border-b-white/5 shadow-2xl shadow-black/80 rounded-2xl p-6">
       <h3 className="text-xl font-serif tracking-wide font-semibold text-zinc-100 mb-4">
-        Expense Breakdown
+        Outflow Breakdown
       </h3>
 
       <div className="h-[300px] w-full">
@@ -80,4 +80,4 @@ const ExpenseChart = () => {
   );
 };
 
-export default ExpenseChart;
+export default React.memo(ExpenseChart);

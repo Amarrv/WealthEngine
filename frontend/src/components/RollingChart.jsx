@@ -81,4 +81,4 @@ const RollingChart = () => {
     );
 };
 
-export default RollingChart;
+export default React.memo(RollingChart);

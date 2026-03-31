@@ -44,6 +44,13 @@ const EXPENSE_UTILITIES = [
     'water bill', 'maintenance'
 ];
 
+// SHOPPING
+const EXPENSE_SHOPPING = [
+    'shopping', 'tshirt', 'shirt', 'pant', 'jogger', 'clothes', 'fashion',
+    'amazon', 'flipkart', 'myntra', 'ajio', 'nykaa', 'meesho',
+    'zara', 'h&m', 'levis', 'denim', 'mall', 'fashions', 'dress'
+];
+
 /* =========================
    🔥 ADVANCED CATEGORY ENGINE
 ========================= */
@@ -53,6 +60,7 @@ const CATEGORY_MAP = [
     { keywords: EXPENSE_FOOD, type: "EXPENSE", category: "Food" },
     { keywords: EXPENSE_TRAVEL, type: "EXPENSE", category: "Transport" },
     { keywords: EXPENSE_UTILITIES, type: "EXPENSE", category: "Utilities" },
+    { keywords: EXPENSE_SHOPPING, type: "EXPENSE", category: "Shopping" },
 
     // INVESTMENTS
     { keywords: ['stock', 'shares', 'zerodha', 'kite'], type: "INVESTMENT", category: "Equities" },
