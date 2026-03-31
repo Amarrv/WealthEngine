@@ -102,9 +102,35 @@ export const FinanceProvider = ({ children }) => {
   // The Mutator Function: Adds a transaction and instantly synchronizes the state
   const addTransaction = async (transactionData) => {
     try {
-      await apiClient.post("/transactions", transactionData);
-      // Immediately re-fetch metrics and ledger
-      await Promise.all([fetchMetrics(), fetchTransactions()]);
+      const response = await apiClient.post("/transactions", transactionData);
+      const newTx = response.data.data;
+
+      // --- OPTIMISTIC UPDATE START ---
+      // 1. Update Ledger Instantly
+      setTransactions(prev => [newTx, ...prev].slice(0, 50));
+
+      // 2. Update Metrics Instantly
+      setMetrics(prev => {
+        const amount = parseFloat(newTx.amount);
+        const newMetrics = { ...prev };
+        
+        if (newTx.type === "INCOME") newMetrics.income = (parseFloat(prev.income) + amount).toFixed(2);
+        if (newTx.type === "EXPENSE") newMetrics.expense = (parseFloat(prev.expense) + amount).toFixed(2);
+        if (newTx.type === "INVESTMENT") newMetrics.investment = (parseFloat(prev.investment) + amount).toFixed(2);
+        
+        // Recalculate Savings Rate
+        const inc = parseFloat(newMetrics.income);
+        const exp = parseFloat(newMetrics.expense);
+        newMetrics.savingsRate = inc > 0 ? ((inc - exp) / inc * 100).toFixed(2) : "0.00";
+        
+        return newMetrics;
+      });
+      // --- OPTIMISTIC UPDATE END ---
+
+      // Final Background Sync (Ensures everything is perfectly aligned with server state)
+      fetchMetrics();
+      fetchTransactions();
+
       return { success: true };
     } catch (err) {
       console.error("Failed to add transaction", err);
@@ -118,8 +144,11 @@ export const FinanceProvider = ({ children }) => {
   const updateTransaction = async (id, updatedData) => {
     try {
       await apiClient.put(`/transactions/${id}`, updatedData);
-      // Immediately re-fetch metrics and ledger
-      await Promise.all([fetchMetrics(), fetchTransactions()]);
+      
+      // Background Sync (Update is slightly more complex for optimistic, so we just bg-refresh)
+      fetchMetrics();
+      fetchTransactions();
+      
       return { success: true };
     } catch (err) {
       console.error("Failed to update transaction", err);
@@ -132,9 +161,34 @@ export const FinanceProvider = ({ children }) => {
 
   const deleteTransaction = async (id) => {
     try {
+      // Optimistically remove from list
+      const deletedTx = transactions.find(t => t._id === id);
+      if (deletedTx) {
+          setTransactions(prev => prev.filter(t => t._id !== id));
+          
+          // Optimistically update metrics
+          setMetrics(prev => {
+              const amount = parseFloat(deletedTx.amount);
+              const newMetrics = { ...prev };
+              
+              if (deletedTx.type === "INCOME") newMetrics.income = (parseFloat(prev.income) - amount).toFixed(2);
+              if (deletedTx.type === "EXPENSE") newMetrics.expense = (parseFloat(prev.expense) - amount).toFixed(2);
+              if (deletedTx.type === "INVESTMENT") newMetrics.investment = (parseFloat(prev.investment) - amount).toFixed(2);
+              
+              const inc = parseFloat(newMetrics.income);
+              const exp = parseFloat(newMetrics.expense);
+              newMetrics.savingsRate = inc > 0 ? ((inc - exp) / inc * 100).toFixed(2) : "0.00";
+              
+              return newMetrics;
+          });
+      }
+
       await apiClient.delete(`/transactions/${id}`);
-      // Immediately re-fetch metrics and ledger
-      await Promise.all([fetchMetrics(), fetchTransactions()]);
+      
+      // Final Background Sync
+      fetchMetrics();
+      fetchTransactions();
+      
       return { success: true };
     } catch (err) {
       console.error("Failed to delete transaction", err);
