@@ -18,8 +18,14 @@ const QuickAdd = ({ editingTransaction = null, onCancel = null }) => {
   useEffect(() => {
     if (editingTransaction?.date) {
       setDate(format(new Date(editingTransaction.date), "yyyy-MM-dd"));
-    } else if (dateRange?.from && dateRange?.to && isSameDay(dateRange.from, dateRange.to)) {
-      setDate(format(dateRange.from, "yyyy-MM-dd"));
+    } else if (dateRange?.from) {
+      // If there is ONLY a from date (single day pick) OR both exist on the same day
+      if (!dateRange.to || isSameDay(dateRange.from, dateRange.to)) {
+        setDate(format(dateRange.from, "yyyy-MM-dd"));
+      } else {
+        // If it's a multi-day range, default to Today
+        setDate(format(new Date(), "yyyy-MM-dd"));
+      }
     } else {
       setDate(format(new Date(), "yyyy-MM-dd"));
     }
@@ -56,12 +62,17 @@ const QuickAdd = ({ editingTransaction = null, onCancel = null }) => {
     setIsSubmitting(true);
 
     // 2. Construct Payload (matching our Zod schema exactly)
+    // We explicitly append T12:00:00 to the strictly formatted YYYY-MM-DD date string.
+    // This forces JavaScript to parse it at 12 PM Local Time rather than Midnight UTC, 
+    // strictly guaranteeing it stays on the selected day regardless of timezone dateline jumps!
+    const safeDate = new Date(`${date}T12:00:00`).toISOString();
+
     const payload = {
       amount: parseFloat(amount).toFixed(2), // Coerce to strict string format
       type,
       category,
       description,
-      date: new Date(date).toISOString(),
+      date: safeDate,
     };
 
     // 3. Execute Context Mutation

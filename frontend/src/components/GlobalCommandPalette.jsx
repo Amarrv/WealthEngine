@@ -9,6 +9,7 @@ import {
     CommandItem,
     CommandSeparator,
 } from "./ui/command";
+import { format, isSameDay } from "date-fns";
 import { Plus, TrendingUp, TrendingDown, RefreshCcw } from "lucide-react";
 
 /* =========================
@@ -118,7 +119,7 @@ const GlobalCommandPalette = () => {
     const [inputValue, setInputValue] = useState("");
     const [manualType, setManualType] = useState(null);
 
-    const { addTransaction, transactions } = useContext(FinanceContext);
+    const { addTransaction, transactions, dateRange } = useContext(FinanceContext);
 
     // Cmd + K
     useEffect(() => {
@@ -201,12 +202,21 @@ const GlobalCommandPalette = () => {
         const formattedDesc =
             normalizedDesc.charAt(0).toUpperCase() + normalizedDesc.slice(1);
 
+        // Intelligently sync with dashboard Date Filter
+        let safeDate = new Date().toISOString();
+        if (dateRange?.from) {
+            if (!dateRange.to || isSameDay(dateRange.from, dateRange.to)) {
+                const dateStr = format(dateRange.from, "yyyy-MM-dd");
+                safeDate = new Date(`${dateStr}T12:00:00`).toISOString();
+            }
+        }
+
         const res = await addTransaction({
             amount,
             description: formattedDesc,
             type,
             category,
-            date: new Date().toISOString()
+            date: safeDate
         });
 
         if (res.success) {

@@ -83,15 +83,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   const registerPasskey = async () => {
-    // 1. Get options from server
-    const optionsRes = await apiClient.get("/auth/generate-registration-options");
-    
-    // 2. Pass options to authenticator
-    const attResp = await startRegistration(optionsRes.data.options);
-    
-    // 3. Verify response with server
-    const verificationRes = await apiClient.post("/auth/verify-registration", attResp);
-    return verificationRes.data;
+    try {
+      // 1. Get options from server
+      const optionsRes = await apiClient.get("/auth/generate-registration-options");
+      
+      // 2. Pass options to authenticator
+      const attResp = await startRegistration(optionsRes.data.options);
+      
+      // 3. Verify response with server
+      const verificationRes = await apiClient.post("/auth/verify-registration", attResp);
+      
+      if (verificationRes.data.success) {
+        alert("Passkey successfully registered!");
+      } else {
+        alert("Registration failed: " + verificationRes.data.message);
+      }
+      return verificationRes.data;
+    } catch (err) {
+      console.error(err);
+      alert("Registration Error: " + (err.response?.data?.message || err.message));
+    }
   };
 
   const logout = async () => {
