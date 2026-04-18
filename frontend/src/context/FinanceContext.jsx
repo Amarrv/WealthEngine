@@ -13,21 +13,39 @@ export const FinanceProvider = ({ children }) => {
     to: endOfMonth(new Date())
   });
 
-  const [metrics, setMetrics] = useState({
+  // Load Initial State from Cache (Standard SWR Pattern)
+  const getCache = (key, fallback) => {
+    try {
+      const cached = localStorage.getItem(`wealth_engine_${key}`);
+      return cached ? JSON.parse(cached) : fallback;
+    } catch { return fallback; }
+  };
+
+  const [metrics, setMetrics] = useState(() => getCache('metrics', {
     income: "0.00",
     expense: "0.00",
     investment: "0.00",
     savingsRate: "0.00",
-  });
-  const [rollingMetrics, setRollingMetrics] = useState([]);
-  const [heatmapData, setHeatmapData] = useState([]);
+    expenseBreakdown: []
+  }));
+  const [rollingMetrics, setRollingMetrics] = useState(() => getCache('rolling', []));
+  const [heatmapData, setHeatmapData] = useState(() => getCache('heatmap', []));
+  const [transactions, setTransactions] = useState(() => getCache('transactions', []));
+  const [goals, setGoals] = useState(() => getCache('goals', []));
 
-  const [transactions, setTransactions] = useState([]);
-  const [goals, setGoals] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !localStorage.getItem('wealth_engine_metrics'));
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isInitialLoad = useRef(true);
   const [error, setError] = useState(null);
+
+  // Persistence Sync
+  useEffect(() => {
+    localStorage.setItem('wealth_engine_metrics', JSON.stringify(metrics));
+    localStorage.setItem('wealth_engine_transactions', JSON.stringify(transactions));
+    localStorage.setItem('wealth_engine_goals', JSON.stringify(goals));
+    localStorage.setItem('wealth_engine_rolling', JSON.stringify(rollingMetrics));
+    localStorage.setItem('wealth_engine_heatmap', JSON.stringify(heatmapData));
+  }, [metrics, transactions, goals, rollingMetrics, heatmapData]);
 
   // Memoize the fetch functions so they aren't recreated on every render
   const fetchMetrics = useCallback(async () => {
@@ -76,126 +94,124 @@ export const FinanceProvider = ({ children }) => {
     }
   }, []);
 
-  // The Initialization & Sync Sequence
+  // The Consolidated Initialization Sequence
   useEffect(() => {
     const syncData = async () => {
       if (!isAuthenticated) return;
       
-      // Only show full page loader on first entry
-      if (isInitialLoad.current) {
-        setIsLoading(true);
-      } else {
-        setIsRefreshing(true);
-      }
-
+      setIsRefreshing(true);
       try {
-        await Promise.all([fetchMetrics(), fetchTransactions(), fetchGoals()]);
+        // Fetch initialization packet + background metrics
+        const [initRes, rollingRes, heatmapRes] = await Promise.all([
+          apiClient.get("/transactions/init"),
+          apiClient.get("/transactions/metrics/rolling-year"),
+          apiClient.get("/transactions/metrics/heatmap"),
+        ]);
+
+        const { metrics: m, transactions: t, goals: g } = initRes.data.data;
+        setMetrics(m);
+        setTransactions(t);
+        setGoals(g);
+        setRollingMetrics(rollingRes.data.data);
+        setHeatmapData(heatmapRes.data.data);
+        
         isInitialLoad.current = false;
+      } catch (err) {
+        console.error("Dashboard Sync Failed:", err);
+        setError("Network error. Showing cached data.");
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
       }
     };
     syncData();
-  }, [fetchMetrics, fetchTransactions, isAuthenticated]);
+  }, [isAuthenticated]);
 
-  // The Mutator Function: Adds a transaction and instantly synchronizes the state
+  // TRULY OPTIMISTIC MUTATORS
   const addTransaction = async (transactionData) => {
+    const tempId = Date.now().toString();
+    const optimisticTx = { ...transactionData, _id: tempId, amount: transactionData.amount.toString() };
+    
+    // Save snapshots for rollback
+    const prevTxs = [...transactions];
+    const prevMetrics = { ...metrics };
+
     try {
-      const response = await apiClient.post("/transactions", transactionData);
-      const newTx = response.data.data;
-
-      // --- OPTIMISTIC UPDATE START ---
-      // 1. Update Ledger Instantly
-      setTransactions(prev => [newTx, ...prev].slice(0, 50));
-
-      // 2. Update Metrics Instantly
+      // 1. Update State BEFORE API Call
+      setTransactions(prev => [optimisticTx, ...prev].slice(0, 50));
       setMetrics(prev => {
-        const amount = parseFloat(newTx.amount);
-        const newMetrics = { ...prev };
+        const amt = parseFloat(transactionData.amount);
+        const next = { ...prev };
+        if (transactionData.type === "INCOME") next.income = (parseFloat(prev.income) + amt).toFixed(2);
+        else if (transactionData.type === "EXPENSE") next.expense = (parseFloat(prev.expense) + amt).toFixed(2);
+        else if (transactionData.type === "INVESTMENT") next.investment = (parseFloat(prev.investment) + amt).toFixed(2);
         
-        if (newTx.type === "INCOME") newMetrics.income = (parseFloat(prev.income) + amount).toFixed(2);
-        if (newTx.type === "EXPENSE") newMetrics.expense = (parseFloat(prev.expense) + amount).toFixed(2);
-        if (newTx.type === "INVESTMENT") newMetrics.investment = (parseFloat(prev.investment) + amount).toFixed(2);
-        
-        // Recalculate Savings Rate
-        const inc = parseFloat(newMetrics.income);
-        const exp = parseFloat(newMetrics.expense);
-        newMetrics.savingsRate = inc > 0 ? ((inc - exp) / inc * 100).toFixed(2) : "0.00";
-        
-        return newMetrics;
+        const inc = parseFloat(next.income);
+        next.savingsRate = inc > 0 ? (((inc - parseFloat(next.expense)) / inc) * 100).toFixed(2) : "0.00";
+        return next;
       });
-      // --- OPTIMISTIC UPDATE END ---
 
-      // Final Background Sync (Ensures everything is perfectly aligned with server state)
-      fetchMetrics();
-      fetchTransactions();
-
+      // 2. Perform API Call
+      const response = await apiClient.post("/transactions", transactionData);
+      
+      // 3. Swap temp item with real item from DB
+      setTransactions(prev => prev.map(t => t._id === tempId ? response.data.data : t));
+      
+      // Background full sync to ensure charts are correct
+      fetchMetrics(); 
       return { success: true };
     } catch (err) {
-      console.error("Failed to add transaction", err);
-      return {
-        success: false,
-        message: err.response?.data?.message || "Transaction failed",
-      };
+      // ROLLBACK on failure
+      setTransactions(prevTxs);
+      setMetrics(prevMetrics);
+      return { success: false, message: "Sync failed. Transaction reverted." };
     }
   };
 
   const updateTransaction = async (id, updatedData) => {
+    const prevTxs = [...transactions];
     try {
-      await apiClient.put(`/transactions/${id}`, updatedData);
+      // Simple optimistic list update
+      setTransactions(prev => prev.map(t => t._id === id ? { ...t, ...updatedData } : t));
       
-      // Background Sync (Update is slightly more complex for optimistic, so we just bg-refresh)
+      await apiClient.put(`/transactions/${id}`, updatedData);
       fetchMetrics();
       fetchTransactions();
-      
       return { success: true };
     } catch (err) {
-      console.error("Failed to update transaction", err);
-      return {
-        success: false,
-        message: err.response?.data?.message || "Update failed",
-      };
+      setTransactions(prevTxs);
+      return { success: false, message: "Update failed." };
     }
   };
 
   const deleteTransaction = async (id) => {
+    const prevTxs = [...transactions];
+    const prevMetrics = { ...metrics };
+    const deletedTx = transactions.find(t => t._id === id);
+
     try {
-      // Optimistically remove from list
-      const deletedTx = transactions.find(t => t._id === id);
       if (deletedTx) {
-          setTransactions(prev => prev.filter(t => t._id !== id));
+        setTransactions(prev => prev.filter(t => t._id !== id));
+        setMetrics(prev => {
+          const amt = parseFloat(deletedTx.amount);
+          const next = { ...prev };
+          if (deletedTx.type === "INCOME") next.income = (parseFloat(prev.income) - amt).toFixed(2);
+          else if (deletedTx.type === "EXPENSE") next.expense = (parseFloat(prev.expense) - amt).toFixed(2);
+          else if (deletedTx.type === "INVESTMENT") next.investment = (parseFloat(prev.investment) - amt).toFixed(2);
           
-          // Optimistically update metrics
-          setMetrics(prev => {
-              const amount = parseFloat(deletedTx.amount);
-              const newMetrics = { ...prev };
-              
-              if (deletedTx.type === "INCOME") newMetrics.income = (parseFloat(prev.income) - amount).toFixed(2);
-              if (deletedTx.type === "EXPENSE") newMetrics.expense = (parseFloat(prev.expense) - amount).toFixed(2);
-              if (deletedTx.type === "INVESTMENT") newMetrics.investment = (parseFloat(prev.investment) - amount).toFixed(2);
-              
-              const inc = parseFloat(newMetrics.income);
-              const exp = parseFloat(newMetrics.expense);
-              newMetrics.savingsRate = inc > 0 ? ((inc - exp) / inc * 100).toFixed(2) : "0.00";
-              
-              return newMetrics;
-          });
+          const inc = parseFloat(next.income);
+          next.savingsRate = inc > 0 ? (((inc - parseFloat(next.expense)) / inc) * 100).toFixed(2) : "0.00";
+          return next;
+        });
       }
 
       await apiClient.delete(`/transactions/${id}`);
-      
-      // Final Background Sync
       fetchMetrics();
-      fetchTransactions();
-      
       return { success: true };
     } catch (err) {
-      console.error("Failed to delete transaction", err);
-      return {
-        success: false,
-        message: err.response?.data?.message || "Deletion failed",
-      };
+      setTransactions(prevTxs);
+      setMetrics(prevMetrics);
+      return { success: false, message: "Deletion failed." };
     }
   };
 

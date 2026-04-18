@@ -20,24 +20,39 @@ function App() {
   const { user, isAuthenticated, isLoading: authLoading, logout, registerPasskey } = useContext(AuthContext);
   const [activeMobileTab, setActiveMobileTab] = useState("home");
 
+  // Auth loading stays as is
   if (authLoading) {
-    return <div className="flex items-center justify-center min-h-screen text-muted-foreground bg-zinc-950">Securing connection...</div>;
+    return <div className="flex items-center justify-center min-h-screen text-muted-foreground bg-zinc-950 px-6 text-center">
+      <div className="space-y-4">
+        <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mx-auto" />
+        <p className="font-serif italic tracking-wide">Securing connection to the vault...</p>
+      </div>
+    </div>;
   }
 
   if (!isAuthenticated) {
     return <Login />;
   }
 
-  if (financeLoading)
-    return <div className="flex items-center justify-center min-h-screen text-muted-foreground bg-zinc-950">Loading Wealth Engine...</div>;
-  if (error)
+  if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-destructive bg-zinc-950">System Error: {error}</div>
+      <div className="flex items-center justify-center min-h-screen text-destructive bg-zinc-950 px-6 text-center">
+        <div className="space-y-2">
+          <h2 className="text-xl font-serif">System Interruption</h2>
+          <p className="text-sm text-zinc-500">{error}</p>
+        </div>
+      </div>
     );
+  }
+
+  // FINANCE LOADING: 
+  // If we have no cache, we show a professional skeleton dashboard instead of text.
+  // If we HAVE cache, isLoading is false immediately (from Context), and we skip this.
+  const isColdStart = financeLoading && !metrics.income;
 
   return (
-    <div className="h-[100dvh] w-full overflow-y-auto overflow-x-hidden bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800/20 via-zinc-950 to-zinc-950 text-zinc-100 font-sans selection:bg-white/10 pb-24 md:pb-8 relative">
-      <div className="max-w-[1400px] mx-auto space-y-8 p-4 md:p-8">
+    <div className={`h-[100dvh] w-full overflow-y-auto overflow-x-hidden bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800/20 via-zinc-950 to-zinc-950 text-zinc-100 font-sans selection:bg-white/10 pb-24 md:pb-8 relative transition-opacity duration-1000 ${isRefreshing && !isColdStart ? 'opacity-90' : 'opacity-100'}`}>
+      <div className={`max-w-[1400px] mx-auto space-y-8 p-4 md:p-8 ${isColdStart ? 'animate-pulse pointer-events-none' : ''}`}>
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div className="flex items-center gap-4">
@@ -83,7 +98,7 @@ function App() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl md:text-3xl font-bold text-zinc-100 font-mono">
-                +₹{metrics.income}
+                {isColdStart ? "---" : `+₹${metrics.income}`}
               </div>
             </CardContent>
           </Card>
@@ -97,7 +112,7 @@ function App() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl md:text-3xl font-bold text-rose-500 font-mono">
-                -₹{metrics.expense}
+                {isColdStart ? "---" : `-₹${metrics.expense}`}
               </div>
             </CardContent>
           </Card>
@@ -111,7 +126,7 @@ function App() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl md:text-3xl font-bold text-zinc-300 font-mono">
-                {metrics.savingsRate}%
+                {isColdStart ? "--" : `${metrics.savingsRate}%`}
               </div>
             </CardContent>
           </Card>
@@ -125,7 +140,7 @@ function App() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl md:text-3xl font-bold text-zinc-100 font-mono">
-                +₹{(parseFloat(metrics.income || 0) - parseFloat(metrics.expense || 0) - parseFloat(metrics.investment || 0)).toFixed(2)}
+                {isColdStart ? "---" : `+₹${(parseFloat(metrics.income || 0) - parseFloat(metrics.expense || 0) - parseFloat(metrics.investment || 0)).toFixed(2)}`}
               </div>
             </CardContent>
           </Card>
