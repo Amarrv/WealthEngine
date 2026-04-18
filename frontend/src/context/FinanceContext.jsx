@@ -101,9 +101,13 @@ export const FinanceProvider = ({ children }) => {
       
       setIsRefreshing(true);
       try {
-        // Fetch initialization packet + background metrics
+        let initUrl = "/transactions/init";
+        if (dateRange?.from && dateRange?.to) {
+          initUrl += `?startDate=${dateRange.from.toISOString()}&endDate=${dateRange.to.toISOString()}`;
+        }
+
         const [initRes, rollingRes, heatmapRes] = await Promise.all([
-          apiClient.get("/transactions/init"),
+          apiClient.get(initUrl),
           apiClient.get("/transactions/metrics/rolling-year"),
           apiClient.get("/transactions/metrics/heatmap"),
         ]);
@@ -125,7 +129,7 @@ export const FinanceProvider = ({ children }) => {
       }
     };
     syncData();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, dateRange]);
 
   // TRULY OPTIMISTIC MUTATORS
   const addTransaction = async (transactionData) => {

@@ -33,7 +33,10 @@ router.post("/", validateTransaction, async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: savedTransaction,
+      data: {
+        ...savedTransaction._doc,
+        amount: savedTransaction.amount.toString(),
+      },
     });
   } catch (error) {
     console.error("Transaction Save Error:", error);
@@ -48,19 +51,30 @@ router.post("/", validateTransaction, async (req, res) => {
 router.get("/init", async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const { startDate, endDate } = req.query;
+
+    let firstDay, lastDay;
+    if (startDate && endDate) {
+      firstDay = new Date(startDate);
+      lastDay = new Date(endDate);
+    } else {
+      const now = new Date();
+      firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+
+    const transactionMatch = { userId };
+    if (startDate && endDate) {
+        transactionMatch.date = { $gte: firstDay, $lte: lastDay };
+    }
 
     // Run all initial queries in parallel
     const [
       metricsRes,
       recentTransactions,
-      userGoals,
-      rollingData,
-      heatmapData
+      userGoals
     ] = await Promise.all([
-      // 1. Metrics (re-using optimized logic internally in a shared way if possible, but for simplicity here)
+      // 1. Metrics optimized via $facet
       Transaction.aggregate([
         { $match: { userId, date: { $gte: firstDay, $lte: lastDay } } },
         {
@@ -74,20 +88,11 @@ router.get("/init", async (req, res) => {
           }
         }
       ]),
-      // 2. Recent Transactions
-      Transaction.find({ userId }).sort({ date: -1 }).limit(50),
+      // 2. Filtered Transactions (Limited to 50 for performance)
+      Transaction.find(transactionMatch).sort({ date: -1 }).limit(50),
       // 3. Goals
       Goal.find({ userId }).sort({ targetDate: 1 }),
-      // 4. Rolling Year Data (placeholder logic to match exist, usually a separate complex query)
-      // I'll assume we fetch them separately or combine them here.
-      // Fetching from existing endpoints logic for now
-      "rolling", // placeholder
-      "heatmap" // placeholder
     ]);
-
-    // Handle rolling/heatmap more concretely by re-using their specific aggregation logic
-    // For brevity in this edit, I will combine the most critical ones and keep the others as separate bg calls or fully merge them.
-    // Let's actually merge the most important 3: Metrics, Transactions, Goals.
 
     // Process Metrics
     const totalsResults = metricsRes[0].totals;
@@ -109,7 +114,10 @@ router.get("/init", async (req, res) => {
           savingsRate: income.gt(0) ? income.minus(expense).div(income).times(100).toFixed(2) : "0.00",
           expenseBreakdown
         },
-        transactions: recentTransactions,
+        transactions: recentTransactions.map(t => ({
+            ...t._doc,
+            amount: t.amount.toString()
+        })),
         goals: userGoals.map(g => ({ ...g._doc, targetAmount: g.targetAmount.toString(), currentSaved: g.currentSaved.toString() }))
       }
     });
