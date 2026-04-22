@@ -11,17 +11,47 @@ const Login = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isAutoTriggering, setIsAutoTriggering] = useState(false);
 
-  const handleBiometricLogin = async (e) => {
-    e.preventDefault();
-    if (!phoneNumber) {
+  // Auto-trigger logic
+  React.useEffect(() => {
+    const savedPhone = localStorage.getItem('wealth_engine_saved_phone');
+    const biometricsEnabled = localStorage.getItem('wealth_engine_biometric_enabled');
+
+    if (savedPhone) {
+      setPhoneNumber(savedPhone);
+      
+      // Only auto-trigger if specifically enabled for this device
+      if (biometricsEnabled === 'true') {
+        const trigger = async () => {
+          setIsAutoTriggering(true);
+          try {
+            await handleBiometricLogin(null, savedPhone);
+          } catch (err) {
+            console.error("Auto-biometric failed", err);
+          } finally {
+            setIsAutoTriggering(false);
+          }
+        };
+        // Small delay to let the UI settle
+        const timer = setTimeout(trigger, 600);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
+  const handleBiometricLogin = async (e, forcePhone = null) => {
+    if (e) e.preventDefault();
+    const phoneToUse = forcePhone || phoneNumber;
+
+    if (!phoneToUse) {
       setStatus('Phone number required for Passkey logic.');
       return;
     }
     try {
       setLoading(true);
       setStatus('Waiting for FaceID/TouchID...');
-      await loginWithBiometrics(phoneNumber);
+      await loginWithBiometrics(phoneToUse);
     } catch (err) {
       console.error(err);
       const exactFault = err.response?.data?.message || err.message;
@@ -143,10 +173,14 @@ const Login = () => {
             type="button"
             onClick={handleBiometricLogin}
             disabled={loading}
-            className="w-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold py-3.5 rounded-xl transition-all duration-300 hover:bg-indigo-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
+            className={`w-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold py-3.5 rounded-xl transition-all duration-300 hover:bg-indigo-500/20 active:scale-[0.98] flex items-center justify-center gap-2 ${isAutoTriggering ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-zinc-950 animate-pulse' : ''}`}
           >
-            <Fingerprint className="w-5 h-5" />
-            <span>Biometric Passkey</span>
+            {isAutoTriggering ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Fingerprint className="w-5 h-5" />
+            )}
+            <span>{isAutoTriggering ? "Scanning Biometrics..." : "Biometric Passkey"}</span>
           </button>
 
           <div className="mt-6 text-center">

@@ -57,6 +57,7 @@ export const AuthProvider = ({ children }) => {
     if (res.data.success) {
       if (res.data.token) localStorage.setItem("auth_token", res.data.token);
       localStorage.setItem("wealth_engine_auth_hint", "true");
+      localStorage.setItem("wealth_engine_saved_phone", phoneNumber);
       await fetchUserData();
     }
     return res.data;
@@ -67,6 +68,7 @@ export const AuthProvider = ({ children }) => {
     if (res.data.success) {
       if (res.data.token) localStorage.setItem("auth_token", res.data.token);
       localStorage.setItem("wealth_engine_auth_hint", "true");
+      localStorage.setItem("wealth_engine_saved_phone", phoneNumber);
       await fetchUserData();
     }
     return res.data;
@@ -87,6 +89,9 @@ export const AuthProvider = ({ children }) => {
 
     if (verificationRes.data.success) {
       if (verificationRes.data.token) localStorage.setItem("auth_token", verificationRes.data.token);
+      localStorage.setItem("wealth_engine_auth_hint", "true");
+      localStorage.setItem("wealth_engine_saved_phone", phoneNumber);
+      localStorage.setItem("wealth_engine_biometric_enabled", "true");
       await fetchUserData();
     }
     return verificationRes.data;
@@ -104,6 +109,7 @@ export const AuthProvider = ({ children }) => {
       const verificationRes = await apiClient.post("/auth/verify-registration", attResp);
       
       if (verificationRes.data.success) {
+        localStorage.setItem("wealth_engine_biometric_enabled", "true");
         alert("Passkey successfully registered!");
       } else {
         alert("Registration failed: " + verificationRes.data.message);
@@ -119,6 +125,7 @@ export const AuthProvider = ({ children }) => {
     await apiClient.post("/auth/logout");
     localStorage.removeItem("auth_token");
     localStorage.removeItem("wealth_engine_auth_hint");
+    localStorage.removeItem("wealth_engine_biometric_enabled");
     setUser(null);
     setIsAuthenticated(false);
   };
