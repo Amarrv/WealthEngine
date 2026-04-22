@@ -125,7 +125,6 @@ export const AuthProvider = ({ children }) => {
     await apiClient.post("/auth/logout");
     localStorage.removeItem("auth_token");
     localStorage.removeItem("wealth_engine_auth_hint");
-    localStorage.removeItem("wealth_engine_biometric_enabled");
     setUser(null);
     setIsAuthenticated(false);
   };
