@@ -10,6 +10,7 @@ import ExpenseChart from "./components/ExpenseChart";
 import GoalsPage from "./components/GoalsPage";
 import RollingChart from "./components/RollingChart";
 import ExpenseHeatmap from "./components/ExpenseHeatmap";
+import AnalyticsDashboard from "./components/Analytics/AnalyticsDashboard";
 import GlobalCommandPalette from "./components/GlobalCommandPalette";
 import DateRangePicker from "./components/DateRangePicker";
 import MobileTaskbar from "./components/MobileTaskbar";
@@ -160,11 +161,8 @@ function App() {
         </div>
 
         {/* INTELLIGENCE LAYER - Analytics Tab */}
-        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 pb-4 sm:pb-0 animate-in fade-in slide-in-from-bottom-2 duration-500 ${activeMobileTab !== "analytics" ? "hidden md:grid" : ""}`}>
-          <RollingChart />
-          <div className="lg:col-span-1">
-            <ExpenseHeatmap />
-          </div>
+        <div className={`animate-in fade-in slide-in-from-bottom-2 duration-500 ${activeMobileTab !== "analytics" ? "hidden md:block" : ""}`}>
+          <AnalyticsDashboard />
         </div>
 
         {/* LONG TERM & PATTERNS - Goals Tab */}

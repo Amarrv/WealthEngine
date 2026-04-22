@@ -89,7 +89,12 @@ router.get("/init", async (req, res) => {
           $facet: {
             totals: [{ $group: { _id: "$type", totalAmount: { $sum: "$amount" } } }],
             categories: [
-              { $match: { type: { $in: ["EXPENSE", "INVESTMENT"] } } },
+              { $match: { type: "EXPENSE" } },
+              { $group: { _id: "$category", categoryTotal: { $sum: "$amount" } } },
+              { $sort: { categoryTotal: -1 } }
+            ],
+            investments: [
+              { $match: { type: "INVESTMENT" } },
               { $group: { _id: "$category", categoryTotal: { $sum: "$amount" } } },
               { $sort: { categoryTotal: -1 } }
             ]
@@ -132,19 +137,25 @@ router.get("/init", async (req, res) => {
     // --- Process Metrics ---
     const totalsResults = initRes[0].totals;
     const categoryResults = initRes[0].categories;
+    const investmentResults = initRes[0].investments;
     let income = new Decimal(0), expense = new Decimal(0), investment = new Decimal(0);
     totalsResults.forEach(r => {
       const v = new Decimal(r.totalAmount.toString());
       if (r._id === "INCOME") income = v; else if (r._id === "EXPENSE") expense = v; else if (r._id === "INVESTMENT") investment = v;
     });
     const expenseBreakdown = categoryResults.map(c => ({ name: c._id, value: parseFloat(c.categoryTotal.toString()) }));
+    const investmentBreakdown = investmentResults.map(c => ({ name: c._id, value: parseFloat(c.categoryTotal.toString()) }));
 
     // --- Process Rolling Year ---
     const monthlyData = {};
     for (let i = 0; i < 12; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        monthlyData[key] = { name: d.toLocaleString('default', { month: 'short' }), income: 0, expense: 0 };
+        monthlyData[key] = { 
+            name: `${d.toLocaleString('default', { month: 'short' })} '${String(d.getFullYear()).slice(-2)}`, 
+            income: 0, 
+            expense: 0 
+        };
     }
     rollingRes.forEach(r => {
         const key = `${r._id.year}-${String(r._id.month).padStart(2, '0')}`;
@@ -178,7 +189,8 @@ router.get("/init", async (req, res) => {
           expense: expense.toFixed(2),
           investment: investment.toFixed(2),
           savingsRate: income.gt(0) ? income.minus(expense).div(income).times(100).toFixed(2) : "0.00",
-          expenseBreakdown
+          expenseBreakdown,
+          investmentBreakdown
         },
         transactions: recentTransactions.map(t => ({ ...t._doc, amount: t.amount.toString() })),
         goals: userGoals.map(g => ({ ...g._doc, targetAmount: g.targetAmount.toString(), currentSaved: g.currentSaved.toString() })),
@@ -219,7 +231,12 @@ router.get("/metrics", async (req, res) => {
             { $group: { _id: "$type", totalAmount: { $sum: "$amount" } } }
           ],
           categories: [
-            { $match: { type: { $in: ["EXPENSE", "INVESTMENT"] } } },
+            { $match: { type: "EXPENSE" } },
+            { $group: { _id: "$category", categoryTotal: { $sum: "$amount" } } },
+            { $sort: { categoryTotal: -1 } }
+          ],
+          investments: [
+            { $match: { type: "INVESTMENT" } },
             { $group: { _id: "$category", categoryTotal: { $sum: "$amount" } } },
             { $sort: { categoryTotal: -1 } }
           ]
@@ -264,7 +281,14 @@ router.get("/metrics", async (req, res) => {
         expense: expense.toFixed(2),
         investment: investment.toFixed(2),
         savingsRate: savingsRate.toFixed(2),
-        expenseBreakdown, // Injecting the new data array into the payload
+        expenseBreakdown: categoryResults.map((cat) => ({
+          name: cat._id,
+          value: parseFloat(cat.categoryTotal.toString()),
+        })),
+        investmentBreakdown: results.investments.map((cat) => ({
+          name: cat._id,
+          value: parseFloat(cat.categoryTotal.toString()),
+        })),
       },
     });
   } catch (error) {
@@ -360,7 +384,7 @@ router.get("/metrics/rolling-year", async (req, res) => {
       const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       monthlyData[key] = {
-        name: d.toLocaleString('default', { month: 'short' }),
+        name: `${d.toLocaleString('default', { month: 'short' })} '${String(d.getFullYear()).slice(-2)}`,
         income: 0,
         expense: 0
       };

@@ -7,9 +7,11 @@ import { Plus, Target, Plane, Briefcase, Laptop, ShieldCheck } from "lucide-reac
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Input } from "./ui/input";
+import { generateInsights } from "../utils/insightEngine";
+import { Sparkles, ArrowRight, AlertTriangle } from "lucide-react";
 
 const GoalsPage = () => {
-  const { goals, addGoal } = useContext(FinanceContext);
+  const { goals, addGoal, metrics, transactions, rollingMetrics } = useContext(FinanceContext);
   const [showNewGoal, setShowNewGoal] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -18,6 +20,13 @@ const GoalsPage = () => {
     icon: "Target",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get Coaching Insights for Goals
+  const { insights } = React.useMemo(() => {
+    return generateInsights(metrics, transactions, goals, rollingMetrics);
+  }, [metrics, transactions, goals, rollingMetrics]);
+
+  const goalTips = insights.filter(i => i.type === "GOAL");
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -55,6 +64,32 @@ const GoalsPage = () => {
         </div>
 
         <TabsContent value="targets" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {goalTips.length > 0 && (
+            <div className="mb-8 space-y-4">
+              <div className="flex items-center gap-2 ml-1 text-zinc-400">
+                <Sparkles size={16} className="text-indigo-400" />
+                <h4 className="text-xs font-bold uppercase tracking-widest">AI Coaching Insights</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {goalTips.map(tip => (
+                  <div key={tip.id} className={`p-4 rounded-2xl border ${tip.priority === 'HIGH' ? 'bg-rose-500/5 border-rose-500/20' : 'bg-zinc-900/40 border-white/5'} flex items-start gap-3`}>
+                    <div className={`p-2 rounded-lg ${tip.priority === 'HIGH' ? 'bg-rose-500/20 text-rose-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                      <AlertTriangle size={16} />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-zinc-100">{tip.title}</p>
+                      <p className="text-xs text-zinc-400 leading-relaxed">{tip.problem}</p>
+                      <div className="flex items-center gap-2 mt-2 text-indigo-400">
+                        <ArrowRight size={12} />
+                        <p className="text-[11px] font-bold">{tip.action}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {goals.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-20 bg-zinc-900/40 border border-white/10 rounded-3xl border-dashed">
               <div className="p-4 bg-zinc-800/50 rounded-full mb-4 border border-white/5">

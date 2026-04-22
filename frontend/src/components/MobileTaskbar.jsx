@@ -10,7 +10,7 @@ const MobileTaskbar = ({ activeTab, setActiveTab }) => {
   const navItems = [
     { id: "home", label: "Home", icon: Home },
     { id: "ledger", label: "Ledger", icon: Scroll },
-    { id: "analytics", label: "Analytics", icon: LineChart },
+    { id: "analytics", label: "AI Analytics", icon: LineChart },
     { id: "goals", label: "Goals", icon: Target },
     { id: "settings", label: "Settings", icon: Settings },
   ];
@@ -25,9 +25,8 @@ const MobileTaskbar = ({ activeTab, setActiveTab }) => {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors duration-200 ${
-                isActive ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
-              }`}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors duration-200 ${isActive ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                }`}
             >
               <Icon className="w-5 h-5" strokeWidth={1.25} />
               <span className="text-[10px] font-medium tracking-wide">
