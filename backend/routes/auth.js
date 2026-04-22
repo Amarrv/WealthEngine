@@ -84,7 +84,7 @@ router.post('/register', async (req, res) => {
     const token = generateToken(user);
     setAuthCookie(res, token);
 
-    res.status(201).json({ success: true, message: 'Account created' });
+    res.status(201).json({ success: true, message: 'Account created', token });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -108,7 +108,7 @@ router.post('/login', async (req, res) => {
     const token = generateToken(user);
     setAuthCookie(res, token);
 
-    res.status(200).json({ success: true, message: 'Logged in successfully' });
+    res.status(200).json({ success: true, message: 'Logged in successfully', token });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -286,7 +286,7 @@ router.post('/verify-authentication', async (req, res) => {
       const token = generateToken(user);
       setAuthCookie(res, token);
 
-      return res.status(200).json({ success: true, message: 'Logged in successfully' });
+      return res.status(200).json({ success: true, message: 'Logged in successfully', token });
     }
 
     res.status(400).json({ success: false, message: 'Authentication failed - Invalid response' });

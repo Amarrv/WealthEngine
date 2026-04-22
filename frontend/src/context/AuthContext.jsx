@@ -6,7 +6,7 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem("wealth_engine_auth_hint"));
   const [isLoading, setIsLoading] = useState(true);
 
   // Global Interceptor setup inside the provider so it can trigger state changes
@@ -36,10 +36,15 @@ export const AuthProvider = ({ children }) => {
         if (res.data.success) {
           setUser(res.data.data);
           setIsAuthenticated(true);
+          localStorage.setItem("wealth_engine_auth_hint", "true");
+        } else {
+          setIsAuthenticated(false);
+          localStorage.removeItem("wealth_engine_auth_hint");
         }
       } catch (error) {
         setIsAuthenticated(false);
         setUser(null);
+        localStorage.removeItem("wealth_engine_auth_hint");
       } finally {
         setIsLoading(false);
       }
@@ -50,6 +55,8 @@ export const AuthProvider = ({ children }) => {
   const loginWithPassword = async (phoneNumber, password) => {
     const res = await apiClient.post("/auth/login", { phoneNumber, password });
     if (res.data.success) {
+      if (res.data.token) localStorage.setItem("auth_token", res.data.token);
+      localStorage.setItem("wealth_engine_auth_hint", "true");
       await fetchUserData();
     }
     return res.data;
@@ -58,6 +65,8 @@ export const AuthProvider = ({ children }) => {
   const registerUser = async (username, phoneNumber, password) => {
     const res = await apiClient.post("/auth/register", { username, phoneNumber, password });
     if (res.data.success) {
+      if (res.data.token) localStorage.setItem("auth_token", res.data.token);
+      localStorage.setItem("wealth_engine_auth_hint", "true");
       await fetchUserData();
     }
     return res.data;
@@ -77,6 +86,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     if (verificationRes.data.success) {
+      if (verificationRes.data.token) localStorage.setItem("auth_token", verificationRes.data.token);
       await fetchUserData();
     }
     return verificationRes.data;
@@ -107,6 +117,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     await apiClient.post("/auth/logout");
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("wealth_engine_auth_hint");
     setUser(null);
     setIsAuthenticated(false);
   };

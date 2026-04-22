@@ -20,8 +20,11 @@ function App() {
   const { user, isAuthenticated, isLoading: authLoading, logout, registerPasskey } = useContext(AuthContext);
   const [activeMobileTab, setActiveMobileTab] = useState("home");
 
-  // Auth loading stays as is
-  if (authLoading) {
+  // OPTIMIZATION: If we have an Auth Hint, we don't block on authLoading.
+  // This allows the app to show the cached dashboard instantly.
+  const hasAuthHint = !!localStorage.getItem("wealth_engine_auth_hint");
+  
+  if (authLoading && !hasAuthHint) {
     return <div className="flex items-center justify-center min-h-screen text-muted-foreground bg-zinc-950 px-6 text-center">
       <div className="space-y-4">
         <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mx-auto" />
@@ -30,11 +33,12 @@ function App() {
     </div>;
   }
 
-  if (!isAuthenticated) {
+  // If we're not authenticated (and have no hint), show Login
+  if (!isAuthenticated && !hasAuthHint) {
     return <Login />;
   }
 
-  if (error) {
+  if (error && !metrics.income) {
     return (
       <div className="flex items-center justify-center min-h-screen text-destructive bg-zinc-950 px-6 text-center">
         <div className="space-y-2">
@@ -46,9 +50,8 @@ function App() {
   }
 
   // FINANCE LOADING: 
-  // If we have no cache, we show a professional skeleton dashboard instead of text.
-  // If we HAVE cache, isLoading is false immediately (from Context), and we skip this.
-  const isColdStart = financeLoading && !metrics.income;
+  // We only show the pulse (Cold Start) if we are truly loading and have no metrics data yet.
+  const isColdStart = financeLoading && (!metrics.income || metrics.income === "0.00");
 
   return (
     <div className={`h-[100dvh] w-full overflow-y-auto overflow-x-hidden bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800/20 via-zinc-950 to-zinc-950 text-zinc-100 font-sans selection:bg-white/10 pb-24 md:pb-8 relative transition-opacity duration-1000 ${isRefreshing && !isColdStart ? 'opacity-90' : 'opacity-100'}`}>

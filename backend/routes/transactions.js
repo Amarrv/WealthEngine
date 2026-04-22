@@ -68,13 +68,21 @@ router.get("/init", async (req, res) => {
         transactionMatch.date = { $gte: firstDay, $lte: lastDay };
     }
 
-    // Run all initial queries in parallel
+    // Consolidated Dashboard Initialization
+    // We fetch: Current Metrics, Recent Ledger, Goals, Rolling Year, and Heatmap in one pass.
+    const now = new Date();
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth() + 1, 1);
+    const heatmapStart = new Date();
+    heatmapStart.setDate(now.getDate() - 365);
+
     const [
-      metricsRes,
+      initRes,
       recentTransactions,
-      userGoals
+      userGoals,
+      rollingRes,
+      heatmapRes
     ] = await Promise.all([
-      // 1. Metrics optimized via $facet
+      // 1. Current Aggregated Metrics
       Transaction.aggregate([
         { $match: { userId, date: { $gte: firstDay, $lte: lastDay } } },
         {
@@ -88,21 +96,79 @@ router.get("/init", async (req, res) => {
           }
         }
       ]),
-      // 2. Filtered Transactions (Limited to 50 for performance)
+      // 2. Recent Ledger (Top 50)
       Transaction.find(transactionMatch).sort({ date: -1 }).limit(50),
       // 3. Goals
       Goal.find({ userId }).sort({ targetDate: 1 }),
+      // 4. Rolling Year Pipeline
+      Transaction.aggregate([
+        { $match: { userId, date: { $gte: oneYearAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$date" },
+              month: { $month: "$date" },
+              type: "$type"
+            },
+            total: { $sum: "$amount" }
+          }
+        }
+      ]),
+      // 5. Heatmap Pipeline
+      Transaction.aggregate([
+        { $match: { userId, date: { $gte: heatmapStart } } },
+        {
+          $group: {
+            _id: {
+              dateStr: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+              type: "$type"
+            },
+            total: { $sum: "$amount" }
+          }
+        }
+      ])
     ]);
 
-    // Process Metrics
-    const totalsResults = metricsRes[0].totals;
-    const categoryResults = metricsRes[0].categories;
+    // --- Process Metrics ---
+    const totalsResults = initRes[0].totals;
+    const categoryResults = initRes[0].categories;
     let income = new Decimal(0), expense = new Decimal(0), investment = new Decimal(0);
     totalsResults.forEach(r => {
       const v = new Decimal(r.totalAmount.toString());
       if (r._id === "INCOME") income = v; else if (r._id === "EXPENSE") expense = v; else if (r._id === "INVESTMENT") investment = v;
     });
     const expenseBreakdown = categoryResults.map(c => ({ name: c._id, value: parseFloat(c.categoryTotal.toString()) }));
+
+    // --- Process Rolling Year ---
+    const monthlyData = {};
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthlyData[key] = { name: d.toLocaleString('default', { month: 'short' }), income: 0, expense: 0 };
+    }
+    rollingRes.forEach(r => {
+        const key = `${r._id.year}-${String(r._id.month).padStart(2, '0')}`;
+        if (monthlyData[key]) {
+            const val = parseFloat(r.total.toString());
+            if (r._id.type === "INCOME") monthlyData[key].income += val;
+            if (r._id.type === "EXPENSE") monthlyData[key].expense += val;
+        }
+    });
+    const formattedRolling = Object.keys(monthlyData).sort().map(key => {
+        const item = monthlyData[key];
+        return { ...item, savingsRate: item.income > 0 ? parseFloat(((item.income - item.expense) / item.income * 100).toFixed(2)) : 0 };
+    });
+
+    // --- Process Heatmap ---
+    const dailyMap = {};
+    heatmapRes.forEach(r => {
+        const date = r._id.dateStr;
+        if (!dailyMap[date]) dailyMap[date] = { expense: 0, income: 0 };
+        const val = parseFloat(r.total.toString());
+        if (r._id.type === "EXPENSE") dailyMap[date].expense += val;
+        if (r._id.type === "INCOME") dailyMap[date].income += val;
+    });
+    const formattedHeatmap = Object.keys(dailyMap).map(date => ({ date, expense: dailyMap[date].expense, income: dailyMap[date].income }));
 
     res.status(200).json({
       success: true,
@@ -114,11 +180,10 @@ router.get("/init", async (req, res) => {
           savingsRate: income.gt(0) ? income.minus(expense).div(income).times(100).toFixed(2) : "0.00",
           expenseBreakdown
         },
-        transactions: recentTransactions.map(t => ({
-            ...t._doc,
-            amount: t.amount.toString()
-        })),
-        goals: userGoals.map(g => ({ ...g._doc, targetAmount: g.targetAmount.toString(), currentSaved: g.currentSaved.toString() }))
+        transactions: recentTransactions.map(t => ({ ...t._doc, amount: t.amount.toString() })),
+        goals: userGoals.map(g => ({ ...g._doc, targetAmount: g.targetAmount.toString(), currentSaved: g.currentSaved.toString() })),
+        rollingMetrics: formattedRolling,
+        heatmapData: formattedHeatmap
       }
     });
   } catch (err) {

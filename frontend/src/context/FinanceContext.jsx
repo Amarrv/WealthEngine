@@ -94,9 +94,11 @@ export const FinanceProvider = ({ children }) => {
     }
   }, []);
 
-  // The Consolidated Initialization Sequence
+  // The Consolidated Initialization Sequence (Master Sync)
   useEffect(() => {
     const syncData = async () => {
+      // If not authenticated, we don't sync. 
+      // AuthHint allows FinanceProvider to exist but it waits for real auth verify or Login redirect.
       if (!isAuthenticated) return;
       
       setIsRefreshing(true);
@@ -106,18 +108,15 @@ export const FinanceProvider = ({ children }) => {
           initUrl += `?startDate=${dateRange.from.toISOString()}&endDate=${dateRange.to.toISOString()}`;
         }
 
-        const [initRes, rollingRes, heatmapRes] = await Promise.all([
-          apiClient.get(initUrl),
-          apiClient.get("/transactions/metrics/rolling-year"),
-          apiClient.get("/transactions/metrics/heatmap"),
-        ]);
+        // ONE REQUEST TO RULE THEM ALL
+        const response = await apiClient.get(initUrl);
+        const { metrics: m, transactions: t, goals: g, rollingMetrics: rm, heatmapData: hd } = response.data.data;
 
-        const { metrics: m, transactions: t, goals: g } = initRes.data.data;
         setMetrics(m);
         setTransactions(t);
         setGoals(g);
-        setRollingMetrics(rollingRes.data.data);
-        setHeatmapData(heatmapRes.data.data);
+        setRollingMetrics(rm);
+        setHeatmapData(hd);
         
         isInitialLoad.current = false;
       } catch (err) {
